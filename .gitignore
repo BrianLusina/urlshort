@@ -72,3 +72,4 @@ bin/golangci-lint
 .env
 store.gob
 store.json
+bin/main
