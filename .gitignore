@@ -70,3 +70,5 @@ bin/golangci-lint
 !bin
 !build
 .env
+store.gob
+store.json
