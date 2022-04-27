@@ -61,7 +61,7 @@ tidy:
 
 # Runs project
 run:
-	go run cmd/app/main.go
+	go run app/cmd/main.go
 
 test:
 	go test ./...
