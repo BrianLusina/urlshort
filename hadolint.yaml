@@ -1,9 +1,0 @@
-# ref: https://github.com/hadolint/hadolint#configure
-trustedRegistries:
-  - docker.io
-  - ghcr.io
-
-ignored:
-    - DL3013
-    - DL3017
-    - DL3018
