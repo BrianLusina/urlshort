@@ -25,9 +25,6 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
 
-      - name: Install Project tooling
-        run: make setup-trivy
-
       - name: Install Dependencies
         run: make install
 
@@ -37,14 +34,6 @@ jobs:
           # specified without patch version: we always use the latest patch version.
           # https://github.com/golangci/golangci-lint/releases
           version: v1.39
-
-      - name: Install Hadolint
-        run: make setup-hadolint
-
-      - name: Lint Dockerfile
-        run: make lint-docker
-        # this is because of the failing linting for Mac OS as the binary is not built for Mac OS
-        continue-on-error: true
 
   test:
     name: Unit Tests
