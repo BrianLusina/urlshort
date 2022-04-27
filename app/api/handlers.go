@@ -3,7 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"urlshort/app/internal/repo"
+	"urlshort/app/internal/core/contracts"
 )
 
 const addForm = `
@@ -16,10 +16,10 @@ URL: <input type="text" name="url">
 `
 
 type Handler struct {
-	store *repo.UrlStore
+	store contracts.Repository
 }
 
-func NewHandler(store *repo.UrlStore) *Handler {
+func NewHandler(store contracts.Repository) *Handler {
 	return &Handler{
 		store: store,
 	}
@@ -27,11 +27,17 @@ func NewHandler(store *repo.UrlStore) *Handler {
 
 func (hdl *Handler) Redirect(w http.ResponseWriter, r *http.Request) {
 	key := r.URL.Path[1:]
-	url := hdl.store.Get(key)
-	if url == "" {
+	if key == "" {
 		http.NotFound(w, r)
 		return
 	}
+	var url string
+
+	if err := hdl.store.Get(&key, &url); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
@@ -42,7 +48,11 @@ func (hdl *Handler) Add(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, addForm)
 		return
 	}
-	key := hdl.store.Put(url)
+	var key string
+	if err := hdl.store.Put(&url, &key); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	fmt.Fprintf(w, "%s", key)
 }
