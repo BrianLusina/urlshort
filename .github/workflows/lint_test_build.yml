@@ -1,0 +1,105 @@
+# This workflow will build a Golang application
+# Ref: https://github.com/golangci/golangci-lint
+
+name: Lint, Test & Build
+
+on: [ push ]
+
+jobs:
+  lint:
+    name: Linting
+
+    strategy:
+      matrix:
+        go-version: [1.17.x, 1.18.x]
+        platform: [ubuntu-latest]
+      fail-fast: false
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Install Project tooling
+        run: make setup-trivy
+
+      - name: Install Dependencies
+        run: make install
+
+      - uses: golangci/golangci-lint-action@v2
+        with:
+          # Required: the version of golangci-lint is required and must be
+          # specified without patch version: we always use the latest patch version.
+          # https://github.com/golangci/golangci-lint/releases
+          version: v1.39
+
+      - name: Install Hadolint
+        run: make setup-hadolint
+
+      - name: Lint Dockerfile
+        run: make lint-docker
+        # this is because of the failing linting for Mac OS as the binary is not built for Mac OS
+        continue-on-error: true
+
+  test:
+    name: Unit Tests
+
+    strategy:
+      matrix:
+        go-version: [1.15.x, 1.16.x]
+        platform: [ubuntu-latest]
+      fail-fast: false
+
+    runs-on: ${{ matrix.platform }}
+
+    needs:
+      - lint
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Run tests
+        run: make test
+
+  build:
+    name: Build
+
+    strategy:
+      matrix:
+        go-version: [1.15.x, 1.16.x]
+        platform: [ubuntu-latest]
+      fail-fast: false
+
+    runs-on: ${{ matrix.platform }}
+    
+    needs:
+      - test
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Run Build
+        run: make build
+
+      - name: Upload App Build
+        uses: actions/upload-artifact@v2
+        # due to possible limitations of artifact upload size limits, we can allow this failure
+        continue-on-error: true
+        with:
+          name: app-build
+          path: bin/main

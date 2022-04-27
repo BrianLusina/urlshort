@@ -1,0 +1,54 @@
+name: Sentry Release
+
+on: 
+  push:
+    branches:
+      - 'develop'
+      - 'main'
+
+jobs:
+  release:
+    name: Sentry Release
+
+    strategy:
+      matrix:
+        go-version: [1.18.x]
+        platform: [ubuntu-latest]
+      fail-fast: false
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Install Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ matrix.go-version }}
+
+    - name: Install Dependencies
+      run: make install
+
+    - name: Run Build
+      run: make build
+
+    - name: Create Sentry Staging release
+      if: github.ref_name == 'develop'
+      uses: getsentry/action-release@v1
+      env:
+        SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+        SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      with:
+        environment: staging
+
+    - name: Create Sentry Production release
+      if: github.ref_name == 'main'
+      uses: getsentry/action-release@v1
+      env:
+        SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+        SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      with:
+        environment: production
