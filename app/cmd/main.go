@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	store := repo.NewUrlStore()
+	store := repo.NewUrlStore("store.gob")
 	handler := api.NewHandler(store)
 
 	http.HandleFunc("/", handler.Redirect)
