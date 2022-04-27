@@ -13,27 +13,27 @@ import (
 	"github.com/google/uuid"
 )
 
+const saveQueueLength = 1000
+
 type UrlStore struct {
-	urls map[string]string
-	mu   sync.RWMutex
-	file *os.File
+	urls     map[string]string
+	mu       sync.RWMutex
+	file     *os.File
+	saveChan chan models.UrlRecord
 }
 
 func NewUrlStore(filename string) *UrlStore {
+	saveChan := make(chan models.UrlRecord, saveQueueLength)
 	store := &UrlStore{
-		urls: make(map[string]string),
+		urls:     make(map[string]string),
+		saveChan: saveChan,
 	}
-
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		log.Fatal("UrlStore", err)
-	}
-
-	store.file = f
 
 	if err := store.load(); err != nil {
 		log.Println("Error loading data in UrlStore", err)
 	}
+
+	go store.saveLoop(filename)
 
 	return store
 }
@@ -63,9 +63,11 @@ func (s *UrlStore) Put(longUrl string) string {
 	for {
 		key := pkg.GenerateKey(s.Count())
 		if s.Set(key, longUrl) {
-			if err := s.save(key, longUrl); err != nil {
-				log.Println("Error saving to UrlStore", err)
-			}
+			s.saveChan <- models.UrlRecord{Key: key, Url: longUrl, BaseModel: models.BaseModel{
+				Identifier: uuid.New().String(),
+				CreatedAt:  time.Now(),
+				UpdatedAt:  time.Now(),
+			}}
 			return key
 		}
 	}
@@ -81,11 +83,28 @@ func (s *UrlStore) Count() int {
 func (s *UrlStore) save(key, url string) error {
 	e := gob.NewEncoder(s.file)
 	urlRecord := models.UrlRecord{Key: key, Url: url, BaseModel: models.BaseModel{
-		Identifier: uuid.UUID().String(),
+		Identifier: uuid.New().String(),
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}}
 	return e.Encode(urlRecord)
+}
+
+func (s *UrlStore) saveLoop(filename string) {
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatal("UrlStore", err)
+	}
+	defer f.Close()
+
+	e := gob.NewEncoder(f)
+
+	for {
+		record := <-s.saveChan
+		if err := e.Encode(record); err != nil {
+			log.Println("Error saving record", err)
+		}
+	}
 }
 
 func (s *UrlStore) load() error {
