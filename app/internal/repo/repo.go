@@ -2,6 +2,7 @@ package repo
 
 import (
 	"encoding/gob"
+	"encoding/json"
 	"io"
 	"log"
 	"os"
@@ -97,7 +98,7 @@ func (s *UrlStore) saveLoop(filename string) {
 	}
 	defer f.Close()
 
-	e := gob.NewEncoder(f)
+	e := json.NewEncoder(f)
 
 	for {
 		record := <-s.saveChan
@@ -112,7 +113,7 @@ func (s *UrlStore) load() error {
 		return err
 	}
 
-	d := gob.NewDecoder(s.file)
+	d := json.NewDecoder(s.file)
 	var err error
 	for err == nil {
 		var r models.UrlRecord
